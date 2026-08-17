@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
+
+# Data artifacts (keep dir structure via .gitkeep, ignore contents)
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+
+# DuckDB
+*.duckdb
+*.duckdb.wal

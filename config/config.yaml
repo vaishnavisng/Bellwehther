@@ -1,0 +1,61 @@
+# Bellwether configuration.
+# Paths are relative to the project root unless absolute.
+
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  data_sample: data/sample
+  database: data/processed/bellwether.duckdb
+
+# Review sources for this product. One entry per platform the product ships on.
+# Comment out or remove entries to ingest a single platform.
+sources:
+  - source_platform: google_play
+    app_id: com.example.app        # Android package name
+    app_name: Example App
+  - source_platform: app_store
+    app_id: "123456789"            # numeric App Store id (quote to keep as string)
+    app_name: Example App
+    country: us
+
+nlp:
+  # KMeans K is chosen by best silhouette score across this range.
+  k_min: 2
+  k_max: 8
+  # Below this many reviews, don't segment — report one honest cluster.
+  min_reviews_for_clustering: 10
+  min_df: 1            # ignore terms rarer than this many docs
+  max_df: 0.9          # ignore terms in >90% of docs (too generic)
+  ngram_max: 2         # unigrams + bigrams
+  top_keywords: 8
+  n_representative: 3
+  random_state: 42     # reproducible clustering
+
+analytics:
+  freq: W                 # time granularity for issue trends (W=weekly)
+  rolling_periods: 4      # baseline window (periods) for rolling mean/std
+  growth_lookback: 2      # periods back used for recent growth rate
+  anomaly_z: 2.0          # z-score threshold for anomaly_flag
+  min_mentions_for_anomaly: 3
+  # Early-warning risk = weighted blend of these normalized signals (sum ~1).
+  weights:
+    growth: 0.30
+    deviation: 0.25
+    rating: 0.20
+    negative: 0.15
+    volume: 0.10
+  growth_cap: 1.0         # growth normalized against this (100% = full signal)
+  z_cap: 3.0
+  volume_cap: 20
+  confidence_cap: 30      # mentions needed for full confidence
+  risk_high: 66
+  risk_medium: 40
+
+pipeline:
+  # Rolling window (in days) used later for trend / anomaly analysis.
+  rolling_window_days: 7
+  # Minimum reviews required before an issue's trend is considered meaningful.
+  min_reviews_for_trend: 30
+
+logging:
+  level: INFO

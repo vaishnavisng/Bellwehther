@@ -1,0 +1,29 @@
+[
+  {
+    "reviewId": "gp_0001",
+    "userName": "A. Rivera",
+    "content": "App keeps crashing every time I open the camera tab.",
+    "score": 1,
+    "thumbsUpCount": 12,
+    "reviewCreatedVersion": "5.4.1",
+    "at": "2026-08-10 09:14:00"
+  },
+  {
+    "reviewId": "gp_0002",
+    "userName": "K. Osei",
+    "content": "Love the new dark mode, works great on my Pixel.",
+    "score": 5,
+    "thumbsUpCount": 3,
+    "reviewCreatedVersion": "5.4.1",
+    "at": "2026-08-11 18:02:00"
+  },
+  {
+    "reviewId": "gp_0003",
+    "userName": "M. Tan",
+    "content": "Payment fails at checkout, tried three cards.",
+    "score": 2,
+    "thumbsUpCount": 7,
+    "reviewCreatedVersion": "5.4.0",
+    "at": "2026-08-12 07:45:00"
+  }
+]

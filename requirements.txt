@@ -1,0 +1,26 @@
+# Core
+pandas
+numpy
+pyyaml
+
+# Storage
+duckdb
+
+# NLP (later layers)
+scikit-learn
+
+# Statistics / predictive analytics (later layers)
+scipy
+statsmodels
+
+# Visualization / dashboard (later layers)
+plotly
+matplotlib
+streamlit
+
+# Ingestion adapters (Google Play + Apple App Store)
+google-play-scraper
+app-store-scraper
+
+# Tests
+pytest
