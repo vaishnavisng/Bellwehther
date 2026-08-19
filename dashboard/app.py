@@ -127,6 +127,20 @@ def fmt_stars(x, d=2):
     return "—" if pd.isna(x) else f"{x:+.{d}f}★"
 
 
+def impact_display(row) -> tuple[str, str | None]:
+    """Predicted impact, falling back to the historical/current-burden estimate
+    when there isn't enough history to forecast forward — never a bare '—'."""
+    pred = row.get("predicted_rating_impact")
+    if pd.notna(pred):
+        return fmt_stars(pred), None
+    hist = row.get("historical_rating_impact")
+    share = row.get("current_share")
+    if pd.notna(hist) and pd.notna(share):
+        burden = share * hist
+        return f"{fmt_stars(burden)} now", "Estimated current drag on the overall rating (share × historical impact) — not enough history yet for a forward forecast."
+    return "Not enough data", None
+
+
 # --------------------------------------------------------------------------- #
 # Pages
 # --------------------------------------------------------------------------- #
@@ -185,8 +199,9 @@ def page_overview(ctx):
             col.markdown(
                 f'{badge(r["risk_level"])}  **{r["issue_label"] or r["issue_id"]}**',
                 unsafe_allow_html=True)
-            col.metric("Predicted impact", fmt_stars(r["predicted_rating_impact"]),
-                       help="Projected change in overall rating over the horizon")
+            val, help_txt = impact_display(r)
+            col.metric("Predicted impact", val,
+                       help=help_txt or "Projected change in overall rating over the horizon")
             col.caption(f"share {fmt_pct(r['current_share'])} · "
                         f"growth {fmt_pct(r['recent_growth'],0)} · "
                         f"hist {fmt_stars(r['historical_rating_impact'])}")
@@ -338,9 +353,11 @@ def page_detail(ctx):
     m[0].metric("Current share", fmt_pct(row["current_share"]))
     m[1].metric("Recent growth", fmt_pct(row["recent_growth"], 0))
     m[2].metric("Historical impact", fmt_stars(row["historical_rating_impact"]))
-    m[3].metric("Predicted impact", fmt_stars(row["predicted_rating_impact"]),
-                help=f"CI [{row['lower_bound']:.2f}, {row['upper_bound']:.2f}]"
-                if pd.notna(row["lower_bound"]) else None)
+    val, fallback_help = impact_display(row)
+    help_txt = fallback_help or (
+        f"CI [{row['lower_bound']:.2f}, {row['upper_bound']:.2f}]"
+        if pd.notna(row["lower_bound"]) else None)
+    m[3].metric("Predicted impact", val, help=help_txt)
     m[4].metric("Confidence", str(row["confidence_level"]).title())
 
     irow = impact[impact["issue_id"] == selected] if not impact.empty else pd.DataFrame()
@@ -359,12 +376,17 @@ def page_detail(ctx):
     st.markdown(_issue_gloss(ctx["kw_map"].get(selected, ""),
                              irow.iloc[0] if not irow.empty else None))
     if not ev.empty:
-        st.caption("In users' own words — the most representative complaints:")
         for _, rv in ev.head(3).iterrows():
             d = pd.to_datetime(rv["review_date"]).date()
             txt = str(rv["review_text"]).strip().replace("\n", " ")
-            st.markdown(f"> {txt}\n>\n> — **{int(rv['rating'])}★** · "
-                        f"{rv['source_platform']} · {d}")
+            st.markdown(
+                f'<div style="border-left:4px solid #cbd5e1; background:#f8fafc; '
+                f'border-radius:6px; padding:10px 14px; margin-bottom:10px; '
+                f'color:#000; font-size:.95rem; line-height:1.5;">{txt}'
+                f'<div style="margin-top:6px; color:#000; font-weight:600; '
+                f'font-size:.85rem;">— {int(rv["rating"])}★ · '
+                f'{rv["source_platform"]} · {d}</div></div>',
+                unsafe_allow_html=True)
 
     st.divider()
     st.subheader("All representative reviews")
