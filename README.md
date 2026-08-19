@@ -67,13 +67,25 @@ run_pipeline.py  orchestrates stages end to end
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python run_pipeline.py
+python run_pipeline.py --sample     # offline end-to-end run (no network)
 pytest
 ```
 
-> **Status:** Layer 4 (trend analytics + early warning) complete — per-issue
-> weekly time series, z-score anomaly flags, and a transparent weighted risk
-> score (`issue_trends`, `issue_summary`). Rating-impact prediction and the
-> dashboard land in later layers.
+`python run_pipeline.py` ingests the live sources in `config/config.yaml`; add
+`--sample` to run the whole chain on a seeded synthetic dataset with no network.
+All expensive NLP/statistical work runs here and writes the analytical tables to
+DuckDB — the dashboard only reads them.
+
+### Reproducibility
+
+For a fixed input dataset and `config/config.yaml`, the pipeline is
+deterministic: KMeans uses a fixed `nlp.random_state`, and every other stage is
+plain pandas/statsmodels arithmetic. The `--sample` dataset is seeded, so it
+reproduces byte-for-byte (`test_pipeline.py::test_reproducible_same_input_same_output`).
+
+> **Status:** Layer 7 (end-to-end pipeline) complete — `run_pipeline.py` chains
+> ingest → validate → clean → DuckDB → issues → trends/anomaly → rating impact →
+> forward-looking risk, with staged logging, timing, and per-stage functions.
+> Seven analytical tables land in DuckDB; the dashboard reads them next.
 >
-> Try it: `demo_ingestion.py` · `demo_preprocess.py` · `demo_issues.py` · `demo_trends.py`
+> Try it: `python run_pipeline.py --sample` · demo scripts in `scripts/`

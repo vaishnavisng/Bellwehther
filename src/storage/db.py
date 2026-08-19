@@ -24,6 +24,8 @@ CLEANED_TABLE = "cleaned_reviews"
 ISSUES_TABLE = "review_issues"
 TRENDS_TABLE = "issue_trends"
 SUMMARY_TABLE = "issue_summary"
+IMPACT_TABLE = "issue_impact"
+PREDICTION_TABLE = "issue_prediction"
 
 _DDL = {
     RAW_TABLE: """
@@ -102,6 +104,53 @@ _DDL = {
             risk_level       VARCHAR,
             confidence       DOUBLE,
             confidence_level VARCHAR
+        )""",
+    IMPACT_TABLE: """
+        CREATE TABLE IF NOT EXISTS issue_impact (
+            issue_id                 VARCHAR PRIMARY KEY,
+            issue_label              VARCHAR,
+            sample_size              INTEGER,
+            non_issue_size           INTEGER,
+            average_issue_rating     DOUBLE,
+            average_non_issue_rating DOUBLE,
+            overall_rating           DOUBLE,
+            median_issue_rating      DOUBLE,
+            median_non_issue_rating  DOUBLE,
+            rating_difference        DOUBLE,
+            low_rating_share_issue   DOUBLE,
+            low_rating_share_non_issue DOUBLE,
+            test_used                VARCHAR,
+            test_reasoning           VARCHAR,
+            p_value                  DOUBLE,
+            significant              BOOLEAN,
+            diff_ci_low              DOUBLE,
+            diff_ci_high             DOUBLE,
+            regression_effect        DOUBLE,
+            regression_ci_low        DOUBLE,
+            regression_ci_high       DOUBLE,
+            regression_p             DOUBLE,
+            reliable                 BOOLEAN,
+            confidence_level         VARCHAR,
+            interpretation           VARCHAR
+        )""",
+    PREDICTION_TABLE: """
+        CREATE TABLE IF NOT EXISTS issue_prediction (
+            issue_id                 VARCHAR PRIMARY KEY,
+            issue_label              VARCHAR,
+            n_periods                INTEGER,
+            horizon                  VARCHAR,
+            current_share            DOUBLE,
+            recent_growth            DOUBLE,
+            current_trend            VARCHAR,
+            historical_rating_impact DOUBLE,
+            predicted_share          DOUBLE,
+            predicted_rating_impact  DOUBLE,
+            lower_bound              DOUBLE,
+            upper_bound              DOUBLE,
+            risk_level               VARCHAR,
+            confidence_level         VARCHAR,
+            reason_code              VARCHAR,
+            explanation              VARCHAR
         )""",
 }
 

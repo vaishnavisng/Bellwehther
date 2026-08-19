@@ -23,14 +23,9 @@ def test_logger_works():
 
 
 def test_pipeline_runs():
-    """Full preprocess+store pipeline, offline via sample standardized data."""
-    import pandas as pd
-
+    """Full pipeline end to end, offline via the seeded sample dataset."""
     import run_pipeline
-    from src.ingestion import GooglePlayAdapter
-    from src.ingestion.sample import load_sample_raw
 
-    std = GooglePlayAdapter("com.example.app", "Example App").standardize(
-        load_sample_raw("google_play"))
-    report = run_pipeline.run(std_df=std)
-    assert report["cleaned_rows"] == 3
+    result = run_pipeline.run(sample=True)
+    assert result["row_counts"]["cleaned_reviews"] > 0
+    assert result["row_counts"]["issue_prediction"] > 0

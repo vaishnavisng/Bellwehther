@@ -21,7 +21,7 @@ sources:
 nlp:
   # KMeans K is chosen by best silhouette score across this range.
   k_min: 2
-  k_max: 8
+  k_max: 6
   # Below this many reviews, don't segment — report one honest cluster.
   min_reviews_for_clustering: 10
   min_df: 1            # ignore terms rarer than this many docs
@@ -50,6 +50,24 @@ analytics:
   confidence_cap: 30      # mentions needed for full confidence
   risk_high: 66
   risk_medium: 40
+
+impact:
+  min_sample: 30            # below this, an issue's estimate is marked unreliable
+  hard_floor: 5             # below this, run no significance test at all
+  alpha: 0.05
+  low_rating_threshold: 2   # ratings <= this count as "low"
+  normal_min_n: 20          # min group size before a t-test is even considered
+
+forecast:
+  horizon_periods: 2        # predict this many periods ahead (with freq=W -> 2 weeks)
+  min_history_periods: 5    # fewer periods than this -> no forecast (insufficient_history)
+  min_fit_points: 4         # min points to fit the share trend + interval
+  alpha: 0.05               # 95% prediction interval
+  # Predicted overall-rating-impact magnitude (stars) -> base risk tier.
+  impact_critical: 0.30
+  impact_high: 0.15
+  impact_medium: 0.05
+  disproportion_gap: 0.20   # low-rating-share gap that counts as "disproportionate"
 
 pipeline:
   # Rolling window (in days) used later for trend / anomaly analysis.

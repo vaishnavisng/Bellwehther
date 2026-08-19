@@ -1,6 +1,8 @@
 from src.storage.db import (
     CLEANED_TABLE,
+    IMPACT_TABLE,
     ISSUES_TABLE,
+    PREDICTION_TABLE,
     RAW_TABLE,
     SUMMARY_TABLE,
     TRENDS_TABLE,
@@ -14,6 +16,6 @@ from src.storage.db import (
 
 __all__ = [
     "RAW_TABLE", "CLEANED_TABLE", "ISSUES_TABLE", "TRENDS_TABLE", "SUMMARY_TABLE",
-    "connect", "create_tables", "insert_reviews", "read_table", "row_count",
-    "data_quality",
+    "IMPACT_TABLE", "PREDICTION_TABLE", "connect", "create_tables",
+    "insert_reviews", "read_table", "row_count", "data_quality",
 ]
