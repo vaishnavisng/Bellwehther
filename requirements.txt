@@ -1,3 +1,7 @@
+# Deployment compatibility: force modern urllib3 so the old vendored-six import
+# (urllib3.packages.six.moves) can't break the build on newer Python.
+urllib3>=2
+
 # Core
 pandas
 numpy

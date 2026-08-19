@@ -426,6 +426,15 @@ def render_analyze_control():
                               name.strip(), int(count))
 
 
+def _load_demo():
+    """Build the offline sample analysis in-process (no network / scrapers)."""
+    with st.spinner("Building demo analysis…"):
+        import run_pipeline
+        run_pipeline.run(sample=True)
+    st.cache_data.clear()
+    st.rerun()
+
+
 def _run_pipeline_for(gp, ap_id, country, name, count):
     if not gp and not ap_id:
         st.sidebar.warning("Enter a Google Play package id and/or an App Store id.")
@@ -459,9 +468,10 @@ def main():
         mtime = os.path.getmtime(db_path())
     except OSError:
         st.markdown('<div class="app-header">📡 Bellwether</div>', unsafe_allow_html=True)
-        st.info("No analysis yet. Use **🔍 Analyze an app** in the sidebar to pick "
-                "an app, or run the pipeline from the terminal:")
-        st.code("python run_pipeline.py --sample", language="bash")
+        st.info("No analysis yet. Load the demo, or use **🔍 Analyze an app** in the "
+                "sidebar to pick a live app.")
+        if st.button("▶️ Load demo data", type="primary"):
+            _load_demo()
         return
 
     try:
@@ -476,8 +486,10 @@ def main():
 
     if cleaned.empty:
         st.markdown('<div class="app-header">📡 Bellwether</div>', unsafe_allow_html=True)
-        st.warning("The database has no reviews yet. Use **🔍 Analyze an app** in the "
-                   "sidebar, or run `python run_pipeline.py --sample`.")
+        st.warning("The database has no reviews yet. Load the demo, or use "
+                   "**🔍 Analyze an app** in the sidebar.")
+        if st.button("▶️ Load demo data", type="primary"):
+            _load_demo()
         return
 
     ranked = warning_ranked(pred)
