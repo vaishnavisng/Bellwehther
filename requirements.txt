@@ -1,32 +1,32 @@
-# Deployment compatibility: force modern urllib3 so the old vendored-six import
-# (urllib3.packages.six.moves) can't break the build on newer Python.
-urllib3>=2
-# Some deps (scrapers) import pkg_resources at import time; not bundled by
-# default on newer Python/pip.
-setuptools
+# Bellwether — runtime dependencies (deployment-safe).
+# Floors chosen so pip resolves fast and only picks versions with modern wheels.
 
 # Core
-pandas
-numpy
-pyyaml
+pandas>=2.2
+numpy>=1.26
+pyyaml>=6.0
 
 # Storage
-duckdb
+duckdb>=1.0
 
-# NLP (later layers)
-scikit-learn
+# NLP
+scikit-learn>=1.4
 
-# Statistics / predictive analytics (later layers)
-scipy
-statsmodels
+# Statistics / predictive analytics
+scipy>=1.11
+statsmodels>=0.14
 
 # Visualization / dashboard
-plotly
-streamlit
+plotly>=5.20
+streamlit>=1.36
 
-# Ingestion adapters (Google Play + Apple App Store)
-google-play-scraper
-app-store-scraper
+# Ingestion — Google Play (pure Python, no heavy transitive deps)
+google-play-scraper>=1.2
 
-# Tests
-pytest
+# NOTE: Apple App Store ingestion uses `app-store-scraper`, which is unmaintained
+# and drags in an ancient requests/urllib3 stack (breaks on modern Python and
+# stalls dependency resolution). It is intentionally NOT installed here.
+# The adapter lazy-imports it, so everything else works without it. To enable
+# App Store ingestion locally:  pip install app-store-scraper
+#
+# Dev/test extras (not needed to run the app):  pip install pytest

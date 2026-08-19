@@ -1,0 +1,13 @@
+[theme]
+# Locked to light: the dashboard uses dark-navy headings that need a light ground.
+base = "light"
+primaryColor = "#2563eb"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f5f7fb"
+textColor = "#1f2430"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

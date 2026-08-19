@@ -26,7 +26,15 @@ class AppStoreAdapter(BaseReviewSource):
 
     def _fetch_raw(self, count: int, country: str | None = None,
                    **kwargs) -> list[dict]:
-        from app_store_scraper import AppStore
+        try:
+            from app_store_scraper import AppStore
+        except ImportError as e:
+            raise ImportError(
+                "App Store ingestion needs the optional `app-store-scraper` "
+                "package (not installed by default because it pulls an outdated "
+                "requests/urllib3 stack). Install it with "
+                "`pip install app-store-scraper`, or use Google Play instead."
+            ) from e
 
         scraper = AppStore(
             country=country or self.country,
