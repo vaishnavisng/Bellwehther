@@ -40,21 +40,29 @@ def test_empty_dataset():
 
 
 def test_very_small_dataset_single_cluster():
-    res = extract_issues(make_df(["login broken", "cannot pay", "great app"]))
+    res = extract_issues(make_df([
+        "the login screen is broken and will not open at all",
+        "cannot pay because the checkout keeps failing every time",
+        "the app is slow and freezes when i tap search",
+    ]))
     assert res.k == 1
     assert res.method == "single"
     assert len(res.assignments) == 3
     assert res.assignments["issue_id"].nunique() == 1
 
 
+_TWO = ["the app crashes every time i open the camera",
+        "payment keeps failing at the checkout screen"]
+
+
 def test_invalid_k_too_large():
     with pytest.raises(ValueError):
-        extract_issues(make_df(["a b c", "d e f"]), k=5)
+        extract_issues(make_df(_TWO), k=5)
 
 
 def test_invalid_k_zero():
     with pytest.raises(ValueError):
-        extract_issues(make_df(["a b c", "d e f"]), k=0)
+        extract_issues(make_df(_TWO), k=0)
 
 
 def test_reproducibility():

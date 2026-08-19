@@ -22,14 +22,125 @@ nlp:
   # KMeans K is chosen by best silhouette score across this range.
   k_min: 2
   k_max: 6
+  # An issue is a complaint: only reviews at/below this rating are clustered into
+  # issues (praise is not an issue). Set to null to cluster all reviews.
+  max_issue_rating: 3
+  # A review needs at least this many words to be an issue candidate (filters
+  # out "bad", "ok ok", "easy" that only form junk clusters).
+  min_words: 4
   # Below this many reviews, don't segment — report one honest cluster.
   min_reviews_for_clustering: 10
-  min_df: 1            # ignore terms rarer than this many docs
+  min_df: 2            # ignore terms rarer than this many docs (drops noise)
   max_df: 0.9          # ignore terms in >90% of docs (too generic)
   ngram_max: 2         # unigrams + bigrams
   top_keywords: 8
   n_representative: 3
   random_state: 42     # reproducible clustering
+  # Generic review filler (not issue names) removed so labels reflect the real
+  # complaint. Sentiment/boilerplate words only — never specific issue terms.
+  extra_stopwords:
+    # generic app words
+    - app
+    - apps
+    - application
+    - phone
+    - mobile
+    - version
+    - star
+    - stars
+    - rating
+    - review
+    - reviews
+    # sentiment (tells us how they feel, not what the issue is)
+    - good
+    - bad
+    - worst
+    - best
+    - nice
+    - great
+    - awesome
+    - amazing
+    - excellent
+    - terrible
+    - horrible
+    - poor
+    - worse
+    - better
+    - super
+    - cool
+    - fine
+    - okay
+    - ok
+    - love
+    - loved
+    - like
+    - hate
+    - waste
+    - useless
+    - pathetic
+    - disappointed
+    - disappointing
+    - pls
+    - plz
+    - please
+    # generic filler verbs/adverbs
+    - use
+    - used
+    - using
+    - get
+    - got
+    - just
+    - really
+    - very
+    - well
+    - thing
+    - things
+    - want
+    - make
+    - made
+    - dont
+    - doesnt
+    - cant
+    - didnt
+    - im
+    - ive
+    # common hinglish filler
+    - aap
+    - hai
+    - hi
+    - ha
+    - haan
+    - bhi
+    - nahi
+    - kya
+    - aur
+    - mera
+    - bahut
+    - kar
+    - karo
+    - pe
+    - se
+    - ko
+    - ka
+    - ki
+    - ke
+    - na
+    - ye
+    - wo
+    - jo
+    - tha
+    - ho
+    - hua
+    - raha
+    - rahe
+    - liye
+    - sab
+    - ab
+    - toh
+    - kaise
+    - kyu
+    - kyun
+    - working
 
 analytics:
   freq: W                 # time granularity for issue trends (W=weekly)

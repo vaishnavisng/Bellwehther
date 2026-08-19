@@ -143,8 +143,10 @@ def compute_issue_impact(cleaned_df: pd.DataFrame,
         if "issue_label" in assignments.columns else {}
     issue_of = assignments.set_index("review_id")["issue_id"]
     df["issue_id"] = df["review_id"].map(issue_of)
-    df = df.dropna(subset=["issue_id"])
-
+    # Keep unassigned (praise / non-complaint) reviews as the non-issue baseline,
+    # so each issue is compared against ALL other reviews — not just other issues.
+    # Otherwise, with complaints-only clustering, every group is low-rated and the
+    # differences vanish.
     overall = float(df["rating"].mean())
     low_t = c["low_rating_threshold"]
     rows = []

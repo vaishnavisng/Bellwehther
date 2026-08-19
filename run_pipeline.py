@@ -63,9 +63,9 @@ def stage(name: str):
 
 
 # --- individually callable stages (no DB side effects) --------------------- #
-def ingest(count: int = 500, sample: bool = False):
+def ingest(count: int = 500, sample: bool = False, sources=None):
     return build_sample_standardized() if sample else fetch_all_sources(
-        count=count, save_raw=True)
+        count=count, save_raw=True, sources=sources)
 
 
 def clean(std_df):
@@ -91,9 +91,13 @@ def forward_risk(trend_df, impact_df):
 
 
 # --- orchestration --------------------------------------------------------- #
-def run(std_df=None, count: int = 500, sample: bool = False) -> dict:
+def run(std_df=None, count: int = 500, sample: bool = False, sources=None) -> dict:
     """Run the full pipeline and persist every analytical table. Returns a summary
-    dict (row counts, backtest, warning count) for verification."""
+    dict (row counts, backtest, warning count) for verification.
+
+    `sources` (list of {source_platform, app_id, app_name, [country]}) overrides
+    config sources, so the dashboard can analyze any app on demand.
+    """
     t0 = time.perf_counter()
     log.info("Bellwether pipeline starting (sample=%s)", sample)
     con = connect()
@@ -101,7 +105,7 @@ def run(std_df=None, count: int = 500, sample: bool = False) -> dict:
 
     with stage("1-4 ingest + validate"):
         if std_df is None:
-            std_df = ingest(count=count, sample=sample)
+            std_df = ingest(count=count, sample=sample, sources=sources)
         log.info("Ingested %d standardized reviews", len(std_df))
 
     with stage("4 clean"):
@@ -153,5 +157,21 @@ if __name__ == "__main__":
                     help="use the offline synthetic dataset (no network)")
     ap.add_argument("--count", type=int, default=500,
                     help="max reviews per source when ingesting live")
+    ap.add_argument("--gplay", help="Google Play package id, e.g. com.example.app")
+    ap.add_argument("--appstore", help="App Store numeric id, e.g. 123456789")
+    ap.add_argument("--app-name", dest="app_name", help="product name (optional)")
+    ap.add_argument("--country", default="us", help="App Store storefront (default us)")
     args = ap.parse_args()
-    run(count=args.count, sample=args.sample)
+
+    # Build an on-the-fly source list from CLI app ids (overrides config sources).
+    sources = None
+    if args.gplay or args.appstore:
+        sources = []
+        if args.gplay:
+            sources.append({"source_platform": "google_play",
+                            "app_id": args.gplay, "app_name": args.app_name})
+        if args.appstore:
+            sources.append({"source_platform": "app_store", "app_id": args.appstore,
+                            "app_name": args.app_name, "country": args.country})
+
+    run(count=args.count, sample=args.sample, sources=sources)

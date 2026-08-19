@@ -69,7 +69,9 @@ def test_stages_callable_independently():
     cleaned, report = run_pipeline.clean(std)
     assert len(cleaned) > 0
     issues = run_pipeline.extract(cleaned)
-    assert len(issues.assignments) == len(cleaned)
+    # issues are clustered from complaints only -> a subset of all reviews
+    assert 0 < len(issues.assignments) <= len(cleaned)
+    assert set(issues.assignments["review_id"]).issubset(set(cleaned["review_id"]))
     trend_df, summary_df = run_pipeline.trends(cleaned, issues.assignments)
     assert len(trend_df) > 0
     impact_df = run_pipeline.impact(cleaned, issues.assignments)

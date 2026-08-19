@@ -26,13 +26,16 @@ def get_adapter(source_platform: str, app_id: str,
     return cls(app_id=app_id, app_name=app_name, **kwargs)
 
 
-def fetch_all_sources(count: int = 200, save_raw: bool = False) -> pd.DataFrame:
-    """Fetch every source listed in config['sources'] and stack into one frame.
+def fetch_all_sources(count: int = 200, save_raw: bool = False,
+                      sources: list[dict] | None = None) -> pd.DataFrame:
+    """Fetch every configured source and stack into one standardized frame.
 
-    Supports one platform or the same product across several platforms;
-    source_platform is preserved so later layers can split or combine.
+    `sources` overrides config['sources'] when given (e.g. from the dashboard's
+    "Analyze an app" control). Supports one platform or the same product across
+    several platforms; source_platform is preserved so layers can split/combine.
     """
-    sources = load_config().get("sources", []) or []
+    if sources is None:
+        sources = load_config().get("sources", []) or []
     frames = []
     for s in sources:
         adapter = get_adapter(

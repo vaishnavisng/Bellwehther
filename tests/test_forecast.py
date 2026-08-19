@@ -91,24 +91,32 @@ def test_benign_issue_low_risk():
     assert out.loc["issue_ok"]["risk_level"] == "LOW"
 
 
-def test_insufficient_history_not_forecast():
-    # only 3 weeks -> below min_history_periods
+def test_insufficient_history_uses_current_burden():
+    # Only 3 weeks (< min_history) -> no forecast, but risk still assessed from
+    # the current burden (share x historical penalty), with a baseline group.
     rng = np.random.default_rng(0)
     rows, assigns, rid = [], [], 0
     for wk in range(3):
         day = WEEK0 + pd.Timedelta(days=7 * wk)
-        for _ in range(8):
-            rows.append((f"r{rid}", day, int(rng.integers(1, 3)), 50))
-            assigns.append((f"r{rid}", "issue_bad", "crash")); rid += 1
+        for _ in range(10):  # harmful complaint, big share, 1-star
+            rows.append((f"b{rid}", day, 1, 50))
+            assigns.append((f"b{rid}", "issue_bad", "crash")); rid += 1
+        for _ in range(10):  # satisfied baseline (unclustered-style, 5-star)
+            rows.append((f"g{rid}", day, 5, 50))
+            assigns.append((f"g{rid}", "issue_ok", "great")); rid += 1
     cleaned = pd.DataFrame(rows, columns=["review_id", "review_date", "rating", "review_length"])
     assignments = pd.DataFrame(assigns, columns=["review_id", "issue_id", "issue_label"])
     trends = build_issue_trends(cleaned, assignments)
     impact = compute_issue_impact(cleaned, assignments)
     out = predict_rating_risk(trends, impact).set_index("issue_id")
     row = out.loc["issue_bad"]
-    assert row["reason_code"] == "insufficient_history"
+    # no forecast produced (too few periods)
     assert row["predicted_rating_impact"] is None or pd.isna(row["predicted_rating_impact"])
     assert row["confidence_level"] == "low"
+    # but risk is driven by current burden and the issue is clearly harmful
+    assert row["reason_code"] == "current_burden"
+    assert row["risk_level"] in ("MEDIUM", "HIGH", "CRITICAL")
+    assert "current" in row["explanation"] and "drag" in row["explanation"]
 
 
 # --- backtesting ---

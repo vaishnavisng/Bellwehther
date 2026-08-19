@@ -184,14 +184,20 @@ def predict_rating_risk(trends: pd.DataFrame,
         else:
             predicted_share = pred_impact = lower = upper = None
 
-        risk = _classify_risk(pred_impact, penalty, reliable, significant,
+        # Current burden = how much this issue drags the overall rating right now
+        # (share x penalty). Used for risk when there's no forecast yet, so a
+        # single scrape is still actionable.
+        current_burden = current_share * penalty if penalty is not None else None
+        risk_basis = pred_impact if fc and penalty is not None else current_burden
+
+        risk = _classify_risk(risk_basis, penalty, reliable, significant,
                               recent_growth, anomaly, c)
         confidence = _confidence(reliable, significant, enough_history, fc is not None)
 
         reason, explanation = _explain(
             risk, current_share, recent_growth, trend, penalty, significant,
-            pred_impact, horizon_text, enough_history, fc is not None,
-            low_iss, low_non, c)
+            pred_impact, current_burden, horizon_text, enough_history,
+            fc is not None, low_iss, low_non, c)
 
         rows.append({
             "issue_id": issue_id,
@@ -213,53 +219,62 @@ def predict_rating_risk(trends: pd.DataFrame,
         })
 
     out = pd.DataFrame(rows, columns=PREDICTION_COLUMNS)
-    # rank most negative predicted impact first (worst risk on top)
+    # Rank worst-first: risk tier, then most-negative predicted impact, then
+    # most-negative historical impact (so single-scrape burden issues still sort).
+    rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    out["_r"] = out["risk_level"].map(rank).fillna(9)
     out = out.sort_values(
-        ["predicted_rating_impact"], ascending=True, na_position="last"
-    ).reset_index(drop=True)
+        ["_r", "predicted_rating_impact", "historical_rating_impact"],
+        ascending=True, na_position="last").drop(columns="_r").reset_index(drop=True)
     log.info("Predicted risk for %d issues (%d HIGH+)",
              len(out), int(out["risk_level"].isin(["HIGH", "CRITICAL"]).sum()))
     return out
 
 
 def _explain(risk, share, growth, trend, penalty, significant, pred_impact,
-             horizon_text, enough_history, has_forecast, low_iss, low_non, c) -> tuple:
-    if not enough_history or not has_forecast:
-        return ("insufficient_history",
-                f"Not enough historical periods to forecast reliably; showing "
-                f"current state only (issue share {share:.1%}, trend {trend}). "
-                f"Collect more history before trusting a {horizon_text} prediction.")
-    if pred_impact is None:
+             current_burden, horizon_text, enough_history, has_forecast,
+             low_iss, low_non, c) -> tuple:
+    if penalty is None:
         return ("no_historical_impact",
                 f"Issue share is {share:.1%} and {trend}, but there is no reliable "
-                f"historical rating association to project forward.")
-    if penalty is not None and penalty >= 0:
+                f"historical rating association to assess.")
+    if penalty >= 0:
         return ("no_negative_pressure",
                 f"Issue share is {share:.1%} and {trend}; it is historically "
                 f"associated with {penalty:+.2f}-star (non-negative) ratings, so it "
                 f"is not a rating-deterioration risk.")
-    if pred_impact >= 0:
+    if has_forecast and pred_impact is not None and pred_impact >= 0:
         return ("no_negative_pressure",
                 f"Issue share is {share:.1%} and {trend} ({growth:+.0%} recent "
-                f"growth); projected rating impact over the {horizon_text} is "
-                f"not negative, so rating risk is low.")
+                f"growth); its projected impact over the {horizon_text} is not "
+                f"negative, so rating risk is low.")
 
-    parts = [f"issue share is {share:.1%} and {trend} ({growth:+.0%} vs recent baseline)"]
-    if significant:
-        parts.append(f"it is historically associated with a {penalty:+.2f}-star "
-                     f"rating change (statistically significant)")
-    else:
-        parts.append(f"it is historically associated with a {penalty:+.2f}-star "
-                     f"rating change (not statistically significant)")
+    # A real complaint (penalty < 0). Build the shared evidence clauses.
+    parts = [f"issue share is {share:.1%} and {trend}"]
+    if has_forecast:
+        parts[0] += f" ({growth:+.0%} vs recent baseline)"
+    sig = "statistically significant" if significant else "not statistically significant"
+    parts.append(f"it is historically associated with a {penalty:+.2f}-star "
+                 f"rating change ({sig})")
     if low_iss is not None and low_non is not None and pd.notna(low_iss) \
             and pd.notna(low_non) and low_iss >= low_non + c["disproportion_gap"]:
         parts.append(f"it is disproportionately present in low-rated reviews "
                      f"({low_iss:.0%} vs {low_non:.0%})")
-    parts.append(f"the projected impact over the {horizon_text} is "
-                 f"{pred_impact:+.2f} stars")
-    reason = ("accelerating_rating_risk" if growth > 0 and risk in ("HIGH", "CRITICAL")
-              else "elevated_rating_risk" if risk in ("HIGH", "CRITICAL", "MEDIUM")
-              else "low_rating_risk")
+
+    if has_forecast and pred_impact is not None:
+        parts.append(f"the projected impact over the {horizon_text} is "
+                     f"{pred_impact:+.2f} stars")
+        reason = ("accelerating_rating_risk"
+                  if growth > 0 and risk in ("HIGH", "CRITICAL")
+                  else "elevated_rating_risk" if risk in ("HIGH", "CRITICAL", "MEDIUM")
+                  else "low_rating_risk")
+    else:
+        # No forecast yet: assess by current burden on the overall rating.
+        parts.append(f"it currently accounts for an estimated {current_burden:+.2f}-"
+                     f"star drag on the overall rating")
+        parts.append("(too little history yet for a forward forecast — based on "
+                     "the current snapshot)")
+        reason = "current_burden"
     return reason, f"Risk is {risk} because " + "; ".join(parts) + "."
 
 

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS, TfidfVectorizer
 from sklearn.metrics import silhouette_score
 
 from src.utils.config import load_config
@@ -36,6 +36,12 @@ def _nlp_cfg() -> dict:
     return {
         "k_min": cfg.get("k_min", 2),
         "k_max": cfg.get("k_max", 8),
+        # Only reviews at/below this rating are clustered into issues — an "issue"
+        # is a complaint, not praise. null = cluster all reviews.
+        "max_issue_rating": cfg.get("max_issue_rating", 3),
+        # A review must have at least this many words to be an issue candidate —
+        # "bad", "ok ok", "easy" carry no issue signal and only form junk clusters.
+        "min_words": cfg.get("min_words", 4),
         "min_reviews_for_clustering": cfg.get("min_reviews_for_clustering", 10),
         "min_df": cfg.get("min_df", 1),
         "max_df": cfg.get("max_df", 0.9),
@@ -43,12 +49,16 @@ def _nlp_cfg() -> dict:
         "top_keywords": cfg.get("top_keywords", 8),
         "n_representative": cfg.get("n_representative", 3),
         "random_state": cfg.get("random_state", 42),
+        "extra_stopwords": cfg.get("extra_stopwords", []) or [],
     }
 
 
 def _vectorize(texts, c) -> tuple:
+    # english stopwords + generic review filler ("app", "good", ...) so cluster
+    # labels reflect the actual complaint, not sentiment/boilerplate.
+    stop = list(ENGLISH_STOP_WORDS.union(w.lower() for w in c["extra_stopwords"]))
     vec = TfidfVectorizer(
-        stop_words="english",
+        stop_words=stop,
         ngram_range=(1, c["ngram_max"]),
         min_df=c["min_df"],
         max_df=c["max_df"],
@@ -83,6 +93,36 @@ def _cluster_keywords(centroid: np.ndarray, terms: np.ndarray, top_n: int) -> li
     return [terms[i] for i in idx if centroid[i] > 0]
 
 
+# Words that already imply a problem — don't append "problem" after them.
+_SUFFIX_WORDS = {"problem", "problems", "issue", "issues", "error", "errors",
+                 "bug", "bugs", "fail", "failed", "failing", "failure", "crash",
+                 "crashes", "crashing"}
+
+
+def _readable_label(keywords: list[str]) -> str:
+    """Turn top TF-IDF terms into a plain phrase, e.g.
+    ['customer','support','service'] -> 'Customer support problem'."""
+    if not keywords:
+        return "General issue"
+    # Prefer the top 2-word term (reads naturally); else the top 2 distinct words.
+    bigram = next((k for k in keywords if " " in k), None)
+    if bigram:
+        words = bigram.split()
+    else:
+        words = []
+        for k in keywords:
+            for w in k.split():
+                if w not in words:
+                    words.append(w)
+            if len(words) >= 2:
+                break
+    words = words[:2]
+    phrase = " ".join(words)
+    if not any(w in _SUFFIX_WORDS for w in words):
+        phrase += " problem"
+    return phrase[:1].upper() + phrase[1:]
+
+
 def extract_issues(cleaned_df: pd.DataFrame, k: int | None = None) -> IssueResult:
     """Cluster cleaned reviews into labeled issues.
 
@@ -90,6 +130,22 @@ def extract_issues(cleaned_df: pd.DataFrame, k: int | None = None) -> IssueResul
     """
     c = _nlp_cfg()
     df = cleaned_df.reset_index(drop=True)
+    # Issues are complaints: cluster only critical reviews, not praise.
+    if c["max_issue_rating"] is not None:
+        keep = pd.to_numeric(df["rating"], errors="coerce") <= c["max_issue_rating"]
+        df = df[keep].reset_index(drop=True)
+    # Drop content-poor reviews (too short to describe an issue).
+    if c["min_words"] and len(df):
+        wc = df["cleaned_text"].fillna("").astype(str).str.split().map(len)
+        df = df[wc >= c["min_words"]].reset_index(drop=True)
+
+    # The product's own name is noise in issue labels — strip it dynamically.
+    if "app_name" in df.columns:
+        app_tokens = {t for nm in df["app_name"].dropna().unique()
+                      for t in str(nm).lower().split()}
+        if app_tokens:
+            c = {**c, "extra_stopwords": list(c["extra_stopwords"]) + list(app_tokens)}
+
     n = len(df)
     cols = ["review_id", "cluster_id", "issue_id", "issue_label",
             "issue_keywords", "cluster_size", "cluster_avg_rating"]
@@ -151,8 +207,8 @@ def extract_issues(cleaned_df: pd.DataFrame, k: int | None = None) -> IssueResul
             keywords, rep_ids = [], df["review_id"].iloc[members[:c["n_representative"]]].tolist()
 
         issue_id = f"issue_{cid:02d}"
-        label = ", ".join(keywords[:3]) if keywords else "unclustered"
-        kw_str = ", ".join(keywords)
+        label = _readable_label(keywords)   # human-readable, e.g. "Payment problem"
+        kw_str = ", ".join(keywords)        # raw terms kept for analysts
         assign_map[cid] = (issue_id, label, kw_str, size, avg_rating)
         summary_rows.append({
             "cluster_id": int(cid),

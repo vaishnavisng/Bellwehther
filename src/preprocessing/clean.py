@@ -22,6 +22,7 @@ log = get_logger(__name__)
 _WS = re.compile(r"\s+")
 _PUNCT_RUN = re.compile(r"([!?.,])\1{2,}")   # cap runs of the same punct at 2
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_ALNUM = r"[^\W_]"                            # any letter/digit (unicode-aware)
 
 
 def clean_text(text: object) -> str:
@@ -51,8 +52,9 @@ def build_cleaned_frame(std_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     df = clean.copy()
 
     df["cleaned_text"] = df["review_text"].map(clean_text)
-    # Drop rows that are empty only after cleaning (e.g. pure punctuation/emoji).
-    empty_after = df["cleaned_text"].str.len() == 0
+    # Drop rows with no analyzable text after cleaning: empty, or content-free
+    # (pure punctuation/emoji) — they yield zero TF-IDF tokens downstream.
+    empty_after = ~df["cleaned_text"].str.contains(_ALNUM, regex=True, na=False)
     if empty_after.any():
         report["empty_after_cleaning"] = int(empty_after.sum())
         df = df[~empty_after].reset_index(drop=True)

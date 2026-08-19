@@ -63,10 +63,14 @@ def build_issue_trends(cleaned_df: pd.DataFrame,
     df["period"] = df["review_date"].dt.to_period(c["freq"]).dt.start_time
     df["is_negative"] = pd.to_numeric(df["rating"], errors="coerce") <= 2
 
-    # Full period grid (every period any review exists) so an issue appearing
-    # from zero is visible against periods where it had no mentions.
-    periods = pd.Index(sorted(df["period"].unique()), name="date")
-    totals = df.groupby("period").size().reindex(periods, fill_value=0)
+    # Period totals use ALL reviews (issues may be clustered from a subset, e.g.
+    # only critical reviews), so issue_share = share of *all* reviews mentioning
+    # it. The grid spans every period any review exists — an issue appearing from
+    # zero stays visible against periods where it had no mentions.
+    allr = cleaned_df[["review_id", "review_date"]].copy()
+    allr["period"] = allr["review_date"].dt.to_period(c["freq"]).dt.start_time
+    periods = pd.Index(sorted(allr["period"].unique()), name="date")
+    totals = allr.groupby("period").size().reindex(periods, fill_value=0)
 
     per = df.groupby(["issue_id", "period"]).agg(
         mention_count=("review_id", "size"),

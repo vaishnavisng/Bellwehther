@@ -13,9 +13,8 @@ scikit-learn
 scipy
 statsmodels
 
-# Visualization / dashboard (later layers)
+# Visualization / dashboard
 plotly
-matplotlib
 streamlit
 
 # Ingestion adapters (Google Play + Apple App Store)
